@@ -1,0 +1,504 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#5b6cff">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>每日习惯打卡</title>
+<style>
+  :root {
+    --bg:#f6f7fb; --card:#ffffff; --text:#1f2430; --muted:#8a90a0;
+    --accent:#5b6cff; --accent-soft:#eef0ff; --done:#35c07f;
+    --danger:#ff6b6b; --ring:#e3e6ee;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:linear-gradient(160deg,#eef1ff 0%,#f6f7fb 45%,#fdf2f5 100%);
+    color:var(--text); min-height:100vh; padding:32px 16px 90px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app { max-width:640px; margin:0 auto; }
+  header { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:22px; }
+  .title-wrap h1 { font-size:28px; font-weight:700; letter-spacing:-.5px; }
+  .date { color:var(--muted); font-size:14px; display:block; margin-top:2px; }
+  .icon-btn { border:none; background:var(--card); color:var(--text); width:42px; height:42px; border-radius:13px; font-size:20px; cursor:pointer; box-shadow:0 6px 18px rgba(40,50,90,.06); transition:transform .1s,background .2s; }
+  .icon-btn:hover { background:var(--accent-soft); }
+  .icon-btn:active { transform:scale(.94); }
+  .summary { background:var(--card); border-radius:20px; padding:22px 24px; box-shadow:0 10px 30px rgba(40,50,90,.06); display:flex; align-items:center; gap:20px; margin-bottom:20px; }
+  .ring { --p:0; width:76px; height:76px; border-radius:50%; background:conic-gradient(var(--accent) calc(var(--p)*1%), var(--ring) 0); display:grid; place-items:center; flex-shrink:0; position:relative; transition:background .4s ease; }
+  .ring::before { content:""; width:58px; height:58px; border-radius:50%; background:var(--card); position:absolute; }
+  .ring-inner { position:relative; z-index:1; font-size:18px; font-weight:700; }
+  .summary-text h2 { font-size:18px; font-weight:700; margin-bottom:4px; }
+  .summary-text p { color:var(--muted); font-size:14px; }
+  .summary-text .msg { color:var(--done); font-weight:600; }
+  .tabs { display:flex; gap:6px; background:#e9ecf5; padding:5px; border-radius:14px; margin-bottom:18px; }
+  .tab { flex:1; border:none; background:transparent; padding:11px; border-radius:10px; font-size:15px; font-weight:600; color:var(--muted); cursor:pointer; transition:.2s; }
+  .tab.active { background:var(--card); color:var(--text); box-shadow:0 3px 10px rgba(40,50,90,.08); }
+  .hidden { display:none !important; }
+  .add-form { display:flex; gap:10px; margin-bottom:8px; }
+  .emoji-preview { width:48px; height:48px; border-radius:14px; border:none; font-size:22px; color:#fff; flex-shrink:0; display:grid; place-items:center; box-shadow:0 4px 12px rgba(40,50,90,.12); }
+  .add-form input { flex:1; min-width:0; border:1.5px solid var(--ring); border-radius:14px; padding:14px 16px; font-size:15px; background:var(--card); color:var(--text); outline:none; transition:.2s; }
+  .add-form input:focus { border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  .add-btn { border:none; border-radius:14px; padding:0 22px; background:var(--accent); color:#fff; font-size:15px; font-weight:600; cursor:pointer; transition:.15s; }
+  .add-btn:hover { background:#4a5bff; }
+  .add-btn:active { transform:scale(.96); }
+  .picker-block { background:var(--card); border-radius:16px; padding:12px 14px; margin-bottom:16px; box-shadow:0 6px 18px rgba(40,50,90,.04); }
+  .picker-label { font-size:12px; color:var(--muted); margin:0 2px 8px; font-weight:600; }
+  .emoji-row { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
+  .emoji-opt { border:2px solid transparent; background:#f4f5fa; border-radius:10px; width:40px; height:40px; font-size:20px; cursor:pointer; flex-shrink:0; transition:.15s; }
+  .emoji-opt.selected { border-color:var(--accent); background:var(--accent-soft); }
+  .color-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .color-opt { width:30px; height:30px; border-radius:50%; border:2px solid transparent; cursor:pointer; transition:.15s; }
+  .color-opt.selected { box-shadow:0 0 0 3px var(--card),0 0 0 5px var(--accent); }
+  .habit-list { display:flex; flex-direction:column; gap:12px; }
+  .habit { background:var(--card); border-radius:16px; padding:14px 16px; display:flex; align-items:center; gap:14px; box-shadow:0 6px 20px rgba(40,50,90,.05); transition:.15s; }
+  .habit:hover { transform:translateY(-1px); box-shadow:0 10px 26px rgba(40,50,90,.09); }
+  .badge { width:42px; height:42px; border-radius:13px; display:grid; place-items:center; font-size:21px; cursor:pointer; flex-shrink:0; color:#fff; }
+  .check { width:28px; height:28px; border-radius:9px; border:2px solid var(--ring); background:#fff; cursor:pointer; display:grid; place-items:center; flex-shrink:0; transition:.15s; color:transparent; font-size:15px; line-height:1; }
+  .habit.done .check { background:var(--done); border-color:var(--done); color:#fff; }
+  .habit-info { flex:1; min-width:0; }
+  .habit-name { font-size:16px; font-weight:600; transition:.2s; }
+  .habit.done .habit-name { color:var(--muted); text-decoration:line-through; }
+  .habit-meta { font-size:12px; color:var(--muted); margin-top:3px; }
+  .delete { border:none; background:transparent; color:var(--muted); font-size:18px; cursor:pointer; width:32px; height:32px; border-radius:10px; opacity:0; transition:.15s; }
+  .habit:hover .delete { opacity:1; }
+  .delete:hover { background:#fdecec; color:var(--danger); }
+  .empty { text-align:center; color:var(--muted); padding:40px 20px; font-size:15px; line-height:1.6; }
+  .empty strong { color:var(--text); }
+  .modal-overlay { position:fixed; inset:0; background:rgba(20,24,40,.45); display:flex; align-items:center; justify-content:center; padding:20px; z-index:50; backdrop-filter:blur(3px); }
+  .modal { background:var(--card); border-radius:20px; width:100%; max-width:420px; padding:22px; box-shadow:0 20px 50px rgba(20,24,40,.25); max-height:90vh; overflow-y:auto; }
+  .modal h3 { font-size:18px; font-weight:700; margin-bottom:16px; }
+  .field { margin-bottom:14px; }
+  .field label { display:block; font-size:13px; color:var(--muted); margin-bottom:6px; font-weight:600; }
+  .field input[type=text], .field input[type=time] { width:100%; border:1.5px solid var(--ring); border-radius:12px; padding:12px 14px; font-size:15px; background:#fff; color:var(--text); outline:none; }
+  .field input:focus { border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  .switch-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .switch-row span { font-size:14px; font-weight:600; }
+  input[type=checkbox] { width:20px; height:20px; accent-color:var(--accent); cursor:pointer; }
+  .hint { font-size:12px; color:var(--muted); line-height:1.5; margin:8px 0 14px; }
+  .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:4px; }
+  .primary { border:none; background:var(--accent); color:#fff; border-radius:12px; padding:11px 18px; font-size:14px; font-weight:600; cursor:pointer; }
+  .primary:hover { background:#4a5bff; }
+  .ghost { border:1.5px solid var(--ring); background:#fff; color:var(--danger); border-radius:12px; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; margin-right:auto; }
+  .ghost:hover { background:#fdecec; }
+  .link-btn { border:none; background:var(--accent-soft); color:var(--accent); border-radius:12px; padding:11px 18px; font-size:14px; font-weight:600; cursor:pointer; margin-right:auto; }
+  .link-btn:hover { background:#e2e5ff; }
+  .toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px); background:var(--text); color:#fff; padding:13px 20px; border-radius:14px; font-size:14px; box-shadow:0 12px 30px rgba(0,0,0,.2); opacity:0; pointer-events:none; transition:.3s; z-index:60; max-width:86vw; text-align:center; }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  .week-card { background:var(--card); border-radius:20px; padding:18px; box-shadow:0 10px 30px rgba(40,50,90,.06); }
+  .week-stat { font-size:13px; color:var(--muted); margin-bottom:16px; }
+  .week-stat strong { color:var(--text); font-size:20px; font-weight:700; }
+  .week-scroll { overflow-x:auto; }
+  .week-grid { display:grid; grid-template-columns:minmax(110px,1.1fr) repeat(7,44px); gap:7px 8px; align-items:center; min-width:480px; }
+  .week-head { text-align:center; font-size:12px; color:var(--muted); line-height:1.25; }
+  .week-head .wd { display:block; font-weight:600; }
+  .week-head .dt { display:block; font-size:10px; opacity:.85; }
+  .week-name { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; min-width:0; }
+  .week-name .em { font-size:18px; }
+  .week-name .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cell { text-align:center; }
+  .dot { width:24px; height:24px; border-radius:50%; border:2px solid var(--ring); display:inline-grid; place-items:center; background:#fff; font-size:12px; color:#fff; }
+  @media (max-width:480px) {
+    .habit:hover .delete { opacity:1; }
+    h1 { font-size:24px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title-wrap">
+      <h1>每日习惯</h1>
+      <span class="date" id="date"></span>
+    </div>
+    <button class="icon-btn" id="settingsBtn" title="每日提醒设置">⏰</button>
+  </header>
+
+  <div class="summary">
+    <div class="ring" id="ring"><span class="ring-inner" id="ringText">0%</span></div>
+    <div class="summary-text">
+      <h2 id="summaryTitle">今天还没有打卡</h2>
+      <p id="summaryMsg">从下面选一个习惯开始吧</p>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="today">今日打卡</button>
+    <button class="tab" data-tab="history">周视图</button>
+  </div>
+
+  <section id="tab-today">
+    <form class="add-form" id="addForm">
+      <span class="emoji-preview" id="newEmojiPreview">🎯</span>
+      <input type="text" id="habitInput" placeholder="添加一个想坚持的习惯…" maxlength="30" autocomplete="off">
+      <button class="add-btn" type="submit">添加</button>
+    </form>
+    <div class="picker-block">
+      <div class="picker-label">选择图标</div>
+      <div class="emoji-row" id="newEmojis"></div>
+      <div class="picker-label" style="margin-top:10px">选择颜色</div>
+      <div class="color-row" id="newColors"></div>
+    </div>
+    <div class="habit-list" id="habitList"></div>
+  </section>
+
+  <section id="tab-history" class="hidden">
+    <div class="week-card" id="weekCard"></div>
+  </section>
+</div>
+
+<div class="modal-overlay hidden" id="editModal">
+  <div class="modal">
+    <h3>编辑习惯</h3>
+    <div class="field"><label>名称</label><input type="text" id="editName" maxlength="30"></div>
+    <div class="field"><label>图标</label><div class="emoji-row" id="editEmojis"></div></div>
+    <div class="field"><label>颜色</label><div class="color-row" id="editColors"></div></div>
+    <div class="modal-actions">
+      <button class="ghost" id="deleteBtn">删除</button>
+      <button class="primary" id="saveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="settingsModal">
+  <div class="modal">
+    <h3>每日提醒</h3>
+    <div class="switch-row"><span>开启提醒</span><input type="checkbox" id="remindToggle"></div>
+    <div class="field"><label>提醒时间</label><input type="time" id="remindTime"></div>
+    <p class="hint">到点会弹出通知提醒你打卡。浏览器通知需要授权；如果页面是本地文件，通知可能受限，但页面内也会弹出提示。</p>
+    <div class="modal-actions">
+      <button class="link-btn" id="requestPermBtn">开启通知权限</button>
+      <button class="primary" id="closeSettingsBtn">完成</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+  const STORAGE_KEY = 'habit-tracker-v1';
+  const COLORS = ['#5b6cff','#35c07f','#ff9f43','#ff6b6b','#a55eea','#2bcbba','#f7b731','#778ca3'];
+  const EMOJIS = ['🎯','💪','📚','🏃','🧘','💧','✍️','🌙','🥗','🧠','🎨','🎹','🌱','⏰','🚴','🧹'];
+
+  function todayKey() {
+    const d = new Date();
+    return dateKey(d);
+  }
+  function dateKey(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function load() {
+    try {
+      const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (data && Array.isArray(data.habits)) {
+        const habits = data.habits.map(h => ({
+          id: h.id || String(Date.now()) + Math.random().toString(16).slice(2),
+          name: h.name || '',
+          emoji: h.emoji || '🎯',
+          color: h.color || COLORS[0],
+          dates: h.dates || {}
+        }));
+        return {
+          habits: habits,
+          settings: Object.assign({ remindEnabled: false, remindTime: '20:00' }, data.settings),
+          lastRemindDate: data.lastRemindDate || null
+        };
+      }
+    } catch (e) {}
+    return { habits: [], settings: { remindEnabled: false, remindTime: '20:00' }, lastRemindDate: null };
+  }
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+  const state = load();
+  const today = todayKey();
+  let pendingEmoji = '🎯', pendingColor = COLORS[0];
+  let editingIndex = null, editEmoji = '🎯', editColor = COLORS[0];
+
+  function formatDate() {
+    const d = new Date();
+    const week = ['日','一','二','三','四','五','六'][d.getDay()];
+    return d.getMonth() + 1 + '月' + d.getDate() + '日 · 周' + week;
+  }
+
+  function streakOf(habit) {
+    let streak = 0;
+    const d = new Date();
+    if (!habit.dates[dateKey(d)]) d.setDate(d.getDate() - 1);
+    while (habit.dates[dateKey(d)]) { streak++; d.setDate(d.getDate() - 1); }
+    return streak;
+  }
+
+  function buildEmojiRow(container, selected, onSelect) {
+    container.innerHTML = '';
+    EMOJIS.forEach(e => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'emoji-opt' + (e === selected ? ' selected' : '');
+      b.textContent = e;
+      b.addEventListener('click', () => onSelect(e));
+      container.appendChild(b);
+    });
+  }
+  function buildColorRow(container, selected, onSelect) {
+    container.innerHTML = '';
+    COLORS.forEach(c => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'color-opt' + (c === selected ? ' selected' : '');
+      b.style.background = c;
+      b.addEventListener('click', () => onSelect(c));
+      container.appendChild(b);
+    });
+  }
+  function renderToday() {
+    const list = document.getElementById('habitList');
+    if (state.habits.length === 0) {
+      list.innerHTML = '<div class="empty"><strong>还没有习惯</strong><br>在上方输入框添加一个吧，比如「健身」「读书」「学英语」</div>';
+    } else {
+      list.innerHTML = '';
+      state.habits.forEach((habit, i) => {
+        const done = !!habit.dates[today];
+        const streak = streakOf(habit);
+        const el = document.createElement('div');
+        el.className = 'habit' + (done ? ' done' : '');
+        el.innerHTML =
+          '<div class="badge"></div>' +
+          '<div class="habit-info"><div class="habit-name"></div><div class="habit-meta"></div></div>' +
+          '<div class="check">✓</div>' +
+          '<button class="delete" title="删除">×</button>';
+        el.querySelector('.badge').textContent = habit.emoji;
+        el.querySelector('.badge').style.background = habit.color;
+        el.querySelector('.habit-name').textContent = habit.name;
+        el.querySelector('.habit-meta').textContent = streak > 0 ? '连续 ' + streak + ' 天' : '今天开始';
+        el.querySelector('.badge').addEventListener('click', () => openEdit(i));
+        el.querySelector('.check').addEventListener('click', () => toggle(i));
+        el.querySelector('.delete').addEventListener('click', () => remove(i));
+        list.appendChild(el);
+      });
+    }
+    updateSummary();
+  }
+
+  function updateSummary() {
+    const total = state.habits.length;
+    const done = state.habits.filter(h => h.dates[today]).length;
+    const pct = total ? Math.round(done / total * 100) : 0;
+    document.getElementById('ring').style.setProperty('--p', pct);
+    document.getElementById('ringText').textContent = pct + '%';
+    const title = document.getElementById('summaryTitle');
+    const msg = document.getElementById('summaryMsg');
+    if (total === 0) {
+      title.textContent = '今天还没有打卡';
+      msg.textContent = '从下面选一个习惯开始吧';
+      msg.className = '';
+    } else if (done === total) {
+      title.textContent = '今日完成 ' + done + ' / ' + total + ' 项';
+      msg.textContent = '太棒了，全部完成！';
+      msg.className = 'msg';
+    } else {
+      title.textContent = '今日完成 ' + done + ' / ' + total + ' 项';
+      msg.textContent = '还剩 ' + (total - done) + ' 项，继续加油';
+      msg.className = '';
+    }
+  }
+
+  function toggle(i) {
+    const habit = state.habits[i];
+    if (habit.dates[today]) { delete habit.dates[today]; }
+    else { habit.dates[today] = true; }
+    save();
+    renderToday();
+    renderWeek();
+  }
+
+  function remove(i) {
+    state.habits.splice(i, 1);
+    save();
+    renderToday();
+    renderWeek();
+  }
+
+  document.getElementById('addForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = document.getElementById('habitInput');
+    const name = input.value.trim();
+    if (!name) return;
+    state.habits.push({ id: String(Date.now()) + Math.random().toString(16).slice(2), name: name, emoji: pendingEmoji, color: pendingColor, dates: {} });
+    save();
+    input.value = '';
+    input.focus();
+    renderToday();
+    renderWeek();
+  });
+  function lastSevenDays() {
+    const arr = [];
+    const base = new Date();
+    const wd = ['日','一','二','三','四','五','六'];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(base);
+      d.setDate(base.getDate() - i);
+      arr.push({ key: dateKey(d), wd: wd[d.getDay()], dt: d.getMonth() + 1 + '/' + d.getDate(), isToday: i === 0 });
+    }
+    return arr;
+  }
+
+  function renderWeek() {
+    const card = document.getElementById('weekCard');
+    const days = lastSevenDays();
+    if (state.habits.length === 0) {
+      card.innerHTML = '<div class="empty"><strong>还没有习惯</strong><br>先添加习惯，这里就会显示最近 7 天的完成情况</div>';
+      return;
+    }
+    let total = 0;
+    state.habits.forEach(h => days.forEach(d => { if (h.dates[d.key]) total++; }));
+    let html = '<div class="week-stat">本周（最近 7 天）共完成 <strong>' + total + '</strong> 次打卡</div>';
+    html += '<div class="week-scroll"><div class="week-grid">';
+    html += '<div class="week-name" style="font-size:12px;color:var(--muted)">习惯</div>';
+    days.forEach(d => {
+      html += '<div class="week-head"><span class="wd">' + (d.isToday ? '今天' : '周' + d.wd) + '</span><span class="dt">' + d.dt + '</span></div>';
+    });
+    state.habits.forEach(h => {
+      html += '<div class="week-name"><span class="em">' + h.emoji + '</span><span class="nm">' + escapeHtml(h.name) + '</span></div>';
+      days.forEach(d => {
+        const done = !!h.dates[d.key];
+        html += '<div class="cell">' + (done ? '<span class="dot" style="background:' + h.color + '">✓</span>' : '<span class="dot"></span>') + '</div>';
+      });
+    });
+    html += '</div></div>';
+    card.innerHTML = html;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function openEdit(i) {
+    editingIndex = i;
+    const h = state.habits[i];
+    editEmoji = h.emoji; editColor = h.color;
+    document.getElementById('editName').value = h.name;
+    const selectEmoji = (e) => { editEmoji = e; buildEmojiRow(document.getElementById('editEmojis'), editEmoji, selectEmoji); };
+    buildEmojiRow(document.getElementById('editEmojis'), editEmoji, selectEmoji);
+    const selectColor = (c) => { editColor = c; buildColorRow(document.getElementById('editColors'), editColor, selectColor); };
+    buildColorRow(document.getElementById('editColors'), editColor, selectColor);
+    document.getElementById('editModal').classList.remove('hidden');
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    const name = document.getElementById('editName').value.trim();
+    if (!name || editingIndex === null) return;
+    state.habits[editingIndex].name = name;
+    state.habits[editingIndex].emoji = editEmoji;
+    state.habits[editingIndex].color = editColor;
+    save();
+    editingIndex = null;
+    document.getElementById('editModal').classList.add('hidden');
+    renderToday();
+    renderWeek();
+  });
+
+  document.getElementById('deleteBtn').addEventListener('click', () => {
+    if (editingIndex === null) return;
+    state.habits.splice(editingIndex, 1);
+    save();
+    editingIndex = null;
+    document.getElementById('editModal').classList.add('hidden');
+    renderToday();
+    renderWeek();
+  });
+
+  document.getElementById('editModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('editModal')) {
+      editingIndex = null;
+      document.getElementById('editModal').classList.add('hidden');
+    }
+  });
+
+  function showToast(text) {
+    const t = document.getElementById('toast');
+    t.textContent = text;
+    t.classList.add('show');
+    clearTimeout(t._t);
+    t._t = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  function notify() {
+    const undone = state.habits.filter(h => !h.dates[today]).length;
+    const body = undone > 0 ? ('今天还有 ' + undone + ' 项习惯未完成') : '今天全部完成啦！';
+    showToast('⏰ ' + body);
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('习惯打卡提醒', { body: body, icon: 'icons/icon-192.png' });
+    }
+  }
+
+  function checkReminder() {
+    const s = state.settings;
+    if (!s.remindEnabled) return;
+    if (state.lastRemindDate === today) return;
+    const now = new Date();
+    const parts = (s.remindTime || '20:00').split(':').map(Number);
+    const h = parts[0], m = parts[1];
+    if (now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m)) {
+      state.lastRemindDate = today;
+      save();
+      notify();
+    }
+  }
+
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-today').classList.toggle('hidden', btn.dataset.tab !== 'today');
+      document.getElementById('tab-history').classList.toggle('hidden', btn.dataset.tab !== 'history');
+    });
+  });
+
+  document.getElementById('settingsBtn').addEventListener('click', () => {
+    document.getElementById('remindToggle').checked = state.settings.remindEnabled;
+    document.getElementById('remindTime').value = state.settings.remindTime || '20:00';
+    document.getElementById('settingsModal').classList.remove('hidden');
+  });
+  document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+    document.getElementById('settingsModal').classList.add('hidden');
+  });
+  document.getElementById('settingsModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('settingsModal')) document.getElementById('settingsModal').classList.add('hidden');
+  });
+  document.getElementById('remindToggle').addEventListener('change', (e) => {
+    state.settings.remindEnabled = e.target.checked;
+    save();
+    if (e.target.checked) showToast('已开启每日提醒，到点会通知你');
+  });
+  document.getElementById('remindTime').addEventListener('change', (e) => {
+    state.settings.remindTime = e.target.value;
+    save();
+  });
+  document.getElementById('requestPermBtn').addEventListener('click', () => {
+    if (!('Notification' in window)) { showToast('此浏览器不支持通知'); return; }
+    Notification.requestPermission().then(p => {
+      showToast(p === 'granted' ? '通知权限已开启' : '未授权通知，将使用页面内提示');
+    });
+  });
+
+  const selectNewEmoji = (e) => { pendingEmoji = e; document.getElementById('newEmojiPreview').textContent = e; buildEmojiRow(document.getElementById('newEmojis'), pendingEmoji, selectNewEmoji); };
+  buildEmojiRow(document.getElementById('newEmojis'), pendingEmoji, selectNewEmoji);
+  const selectNewColor = (c) => { pendingColor = c; document.getElementById('newEmojiPreview').style.background = c; buildColorRow(document.getElementById('newColors'), pendingColor, selectNewColor); };
+  buildColorRow(document.getElementById('newColors'), pendingColor, selectNewColor);
+
+  document.getElementById('date').textContent = formatDate();
+  renderToday();
+  renderWeek();
+  checkReminder();
+  setInterval(checkReminder, 30000);
+
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.protocol === 'http:')) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>
+</body>
+</html>
+
